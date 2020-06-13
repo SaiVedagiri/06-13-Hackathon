@@ -931,6 +931,7 @@ class _BusPageState extends State<BusPage> {
   }
 
   initStateFunction() async {
+    displayList = [];
     Map<String, String> headers = {
       "Content-type": "application/json",
       "Origin": "*",
@@ -1004,6 +1005,8 @@ class _BusPageState extends State<BusPage> {
                     builder: (context) {
                       origin = "";
                       destination = "";
+                      dateTimeString1 = "";
+                      dateTimeString2 = "";
                       return AlertDialog(
                           title: Text("Filter"),
                           content:
@@ -1220,14 +1223,29 @@ class _BusPageState extends State<BusPage> {
                           new MaterialPageRoute(
                               builder: (context) => new MapPage(
                                   vehicleID: displayList[index]["vehiclekey"],
-                                  vehicleType: "bus",
+                                  vehicleType: "plane",
                                   timeID: displayList[index]["timekey"])));
                     },
                     leading: CircleAvatar(
-                      backgroundImage: AssetImage('assets/bus_icon.jpg'),
+                      backgroundImage: AssetImage('assets/bus_icon.png'),
                     ),
-                    title: Text(
-                        "${displayList[index]["startlocation"]} to ${displayList[index]["destination"]}"),
+                    title: index == 0 ? (Text.rich(
+                      TextSpan(
+                        children: <TextSpan>[
+                          TextSpan(
+                            text: 'RECOMMENDED\n',
+                            style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,),
+                          ),
+                          TextSpan(
+                            text:
+                            '${displayList[index]["startlocation"]} to ${displayList[index]["destination"]}\n',
+                            style: TextStyle(fontSize: 20),
+                          ),
+                        ],
+                      ),
+                    )) : (Text("${displayList[index]["startlocation"]} to ${displayList[index]["destination"]}")),
                     subtitle: Text(
                         "${displayList[index]["starttimes"]} to ${displayList[index]["endtimes"]}"),
                     trailing: CircleAvatar(
@@ -1251,6 +1269,30 @@ class TrainPage extends StatefulWidget {
 }
 
 class _TrainPageState extends State<TrainPage> {
+
+  @override
+  initState() {
+    super.initState();
+    initStateFunction();
+  }
+
+  initStateFunction() async {
+    displayList = [];
+    Map<String, String> headers = {
+      "Content-type": "application/json",
+      "Origin": "*",
+      "type": "train",
+    };
+    Response response = await post(
+        'https://safetravels.macrotechsolutions.us:9146/http://localhost/fullList',
+        headers: headers);
+    //createAlertDialog(context);
+    var tempJson = jsonDecode(response.body);
+    setState(() {
+      displayList = tempJson["data"];
+    });
+  }
+
   Future<String> createAlertDialog(
       BuildContext context, String title, String body) {
     return showDialog(
@@ -1300,6 +1342,151 @@ class _TrainPageState extends State<TrainPage> {
       appBar: AppBar(
         title: Text("SafeTravels Train"),
         actions: <Widget>[
+          IconButton(
+              icon: Icon(Icons.filter_list),
+              onPressed: () async {
+                showDialog(
+                    context: context,
+                    builder: (context) {
+                      origin = "";
+                      destination = "";
+                      dateTimeString1 = "";
+                      dateTimeString2 = "";
+                      return AlertDialog(
+                          title: Text("Filter"),
+                          content:
+                          ListView(shrinkWrap: true, children: <Widget>[
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                            ),
+                            Text("Start Time: "),
+                            DateTimeField(
+                              format: DateFormat('EEEE, MMMM dd, y @ HH:mm '),
+                              onShowPicker: (context, currentValue) async {
+                                DateTime now = DateTime.now();
+                                String year = DateFormat('yyyy').format(now);
+                                final date = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(int.parse(year)),
+                                    initialDate: currentValue ?? DateTime.now(),
+                                    lastDate: DateTime(int.parse(year) + 10));
+                                if (date != null) {
+                                  final time = await showTimePicker(
+                                    context: context,
+                                    initialTime: TimeOfDay.fromDateTime(
+                                        currentValue ?? DateTime.now()),
+                                  );
+                                  dateTimeString1 = DateFormat(
+                                      "yyyy-MM-dd HH:mm")
+                                      .format(DateTimeField.combine(date, time))
+                                      .toString();
+                                  setState(() {
+                                    scheduledTime1 =
+                                        DateTimeField.combine(date, time)
+                                            .toString();
+                                  });
+                                  return DateTimeField.combine(date, time);
+                                } else {
+                                  return currentValue;
+                                }
+                              },
+                              initialValue: DateTime.now(),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                            ),
+                            Text("End Time: "),
+                            DateTimeField(
+                              format: DateFormat('EEEE, MMMM dd, y @ HH:mm '),
+                              onShowPicker: (context, currentValue) async {
+                                DateTime now = DateTime.now();
+                                String year = DateFormat('yyyy').format(now);
+                                final date = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(int.parse(year)),
+                                    initialDate: currentValue ?? DateTime.now(),
+                                    lastDate: DateTime(int.parse(year) + 10));
+                                if (date != null) {
+                                  final time = await showTimePicker(
+                                    context: context,
+                                    initialTime: TimeOfDay.fromDateTime(
+                                        currentValue ?? DateTime.now()),
+                                  );
+                                  dateTimeString2 = DateFormat(
+                                      "yyyy-MM-dd HH:mm")
+                                      .format(DateTimeField.combine(date, time))
+                                      .toString();
+                                  setState(() {
+                                    scheduledTime2 =
+                                        DateTimeField.combine(date, time)
+                                            .toString();
+                                  });
+                                  return DateTimeField.combine(date, time);
+                                } else {
+                                  return currentValue;
+                                }
+                              },
+                              initialValue: DateTime.now(),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                            ),
+                            TextField(
+                              decoration: InputDecoration(
+                                  labelText: 'Origin', hintText: "Origin"),
+                              onChanged: (String str) {
+                                setState(() {
+                                  origin = str;
+                                });
+                              },
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                            ),
+                            TextField(
+                              decoration: InputDecoration(
+                                  labelText: 'Destination',
+                                  hintText: "Destination"),
+                              onChanged: (String str) {
+                                setState(() {
+                                  destination = str;
+                                });
+                              },
+                            ),
+                          ]),
+                          actions: <Widget>[
+                            MaterialButton(
+                              elevation: 5.0,
+                              onPressed: () async {
+                                print(dateTimeString1);
+                                print(dateTimeString2);
+                                print(origin);
+                                print(destination);
+                                Map<String, String> headers = {
+                                  "Content-type": "application/json",
+                                  "Origin": "*",
+                                  "type": "train",
+                                  "starttimes": dateTimeString1,
+                                  "endtimes": dateTimeString2,
+                                  "startlocation": origin,
+                                  "destination": destination,
+                                };
+                                Response response = await post(
+                                    'https://safetravels.macrotechsolutions.us:9146/http://localhost/filterList',
+                                    headers: headers);
+                                //createAlertDialog(context);
+                                var tempJson = jsonDecode(response.body);
+                                print(tempJson);
+                                setState(() {
+                                  displayList = tempJson["data"];
+                                });
+                                Navigator.of(context).pop();
+                              },
+                              child: Text("OK"),
+                            )
+                          ]);
+                    });
+              }),
           IconButton(
               icon: Icon(Icons.help),
               onPressed: () async {
@@ -1357,9 +1544,62 @@ class _TrainPageState extends State<TrainPage> {
           ],
         ),
       ),
-      body: ListView(
-        children: <Widget>[],
-      ),
+      body: ListView.builder(
+          itemCount: displayList.length == null ? 1 : displayList.length,
+          itemBuilder: (context, index) {
+            return Padding(
+                padding:
+                const EdgeInsets.symmetric(vertical: 1.0, horizontal: 4.0),
+                child: Card(
+                  child: ListTile(
+                    onTap: () {
+                      dispose() {
+                        SystemChrome.setPreferredOrientations([
+                          DeviceOrientation.landscapeRight,
+                          DeviceOrientation.landscapeLeft,
+                          DeviceOrientation.portraitUp,
+                          DeviceOrientation.portraitDown,
+                        ]);
+                        super.dispose();
+                      }
+
+                      Navigator.push(
+                          context,
+                          new MaterialPageRoute(
+                              builder: (context) => new MapPage(
+                                  vehicleID: displayList[index]["vehiclekey"],
+                                  vehicleType: "train",
+                                  timeID: displayList[index]["timekey"])));
+                    },
+                    leading: CircleAvatar(
+                      backgroundImage: AssetImage('assets/train.png'),
+                    ),
+                    title: index == 0 ? (Text.rich(
+                      TextSpan(
+                        children: <TextSpan>[
+                          TextSpan(
+                            text: 'RECOMMENDED\n',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,),
+                          ),
+                          TextSpan(
+                            text:
+                            '${displayList[index]["startlocation"]} to ${displayList[index]["destination"]}\n',
+                            style: TextStyle(fontSize: 20),
+                          ),
+                        ],
+                      ),
+                    )) : (Text("${displayList[index]["startlocation"]} to ${displayList[index]["destination"]}")),
+                    subtitle: Text(
+                        "${displayList[index]["starttimes"]} to ${displayList[index]["endtimes"]}"),
+                    trailing: CircleAvatar(
+                        backgroundColor: HexColor(displayList[index]["hex"]),
+                        child: Text("${displayList[index]["risk"] * 100}%",
+                            style: TextStyle(fontSize: 12.0))),
+                  ),
+                ));
+          }),
     );
   }
 }
@@ -1374,6 +1614,30 @@ class PlanePage extends StatefulWidget {
 }
 
 class _PlanePageState extends State<PlanePage> {
+
+  @override
+  initState() {
+    super.initState();
+    initStateFunction();
+  }
+
+  initStateFunction() async {
+    displayList = [];
+    Map<String, String> headers = {
+      "Content-type": "application/json",
+      "Origin": "*",
+      "type": "plane",
+    };
+    Response response = await post(
+        'https://safetravels.macrotechsolutions.us:9146/http://localhost/fullList',
+        headers: headers);
+    //createAlertDialog(context);
+    var tempJson = jsonDecode(response.body);
+    setState(() {
+      displayList = tempJson["data"];
+    });
+  }
+
   Future<String> createAlertDialog(
       BuildContext context, String title, String body) {
     return showDialog(
@@ -1423,6 +1687,151 @@ class _PlanePageState extends State<PlanePage> {
       appBar: AppBar(
         title: Text("SafeTravels Plane"),
         actions: <Widget>[
+          IconButton(
+              icon: Icon(Icons.filter_list),
+              onPressed: () async {
+                showDialog(
+                    context: context,
+                    builder: (context) {
+                      origin = "";
+                      destination = "";
+                      dateTimeString1 = "";
+                      dateTimeString2 = "";
+                      return AlertDialog(
+                          title: Text("Filter"),
+                          content:
+                          ListView(shrinkWrap: true, children: <Widget>[
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                            ),
+                            Text("Start Time: "),
+                            DateTimeField(
+                              format: DateFormat('EEEE, MMMM dd, y @ HH:mm '),
+                              onShowPicker: (context, currentValue) async {
+                                DateTime now = DateTime.now();
+                                String year = DateFormat('yyyy').format(now);
+                                final date = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(int.parse(year)),
+                                    initialDate: currentValue ?? DateTime.now(),
+                                    lastDate: DateTime(int.parse(year) + 10));
+                                if (date != null) {
+                                  final time = await showTimePicker(
+                                    context: context,
+                                    initialTime: TimeOfDay.fromDateTime(
+                                        currentValue ?? DateTime.now()),
+                                  );
+                                  dateTimeString1 = DateFormat(
+                                      "yyyy-MM-dd HH:mm")
+                                      .format(DateTimeField.combine(date, time))
+                                      .toString();
+                                  setState(() {
+                                    scheduledTime1 =
+                                        DateTimeField.combine(date, time)
+                                            .toString();
+                                  });
+                                  return DateTimeField.combine(date, time);
+                                } else {
+                                  return currentValue;
+                                }
+                              },
+                              initialValue: DateTime.now(),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                            ),
+                            Text("End Time: "),
+                            DateTimeField(
+                              format: DateFormat('EEEE, MMMM dd, y @ HH:mm '),
+                              onShowPicker: (context, currentValue) async {
+                                DateTime now = DateTime.now();
+                                String year = DateFormat('yyyy').format(now);
+                                final date = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(int.parse(year)),
+                                    initialDate: currentValue ?? DateTime.now(),
+                                    lastDate: DateTime(int.parse(year) + 10));
+                                if (date != null) {
+                                  final time = await showTimePicker(
+                                    context: context,
+                                    initialTime: TimeOfDay.fromDateTime(
+                                        currentValue ?? DateTime.now()),
+                                  );
+                                  dateTimeString2 = DateFormat(
+                                      "yyyy-MM-dd HH:mm")
+                                      .format(DateTimeField.combine(date, time))
+                                      .toString();
+                                  setState(() {
+                                    scheduledTime2 =
+                                        DateTimeField.combine(date, time)
+                                            .toString();
+                                  });
+                                  return DateTimeField.combine(date, time);
+                                } else {
+                                  return currentValue;
+                                }
+                              },
+                              initialValue: DateTime.now(),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                            ),
+                            TextField(
+                              decoration: InputDecoration(
+                                  labelText: 'Origin', hintText: "Origin"),
+                              onChanged: (String str) {
+                                setState(() {
+                                  origin = str;
+                                });
+                              },
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                            ),
+                            TextField(
+                              decoration: InputDecoration(
+                                  labelText: 'Destination',
+                                  hintText: "Destination"),
+                              onChanged: (String str) {
+                                setState(() {
+                                  destination = str;
+                                });
+                              },
+                            ),
+                          ]),
+                          actions: <Widget>[
+                            MaterialButton(
+                              elevation: 5.0,
+                              onPressed: () async {
+                                print(dateTimeString1);
+                                print(dateTimeString2);
+                                print(origin);
+                                print(destination);
+                                Map<String, String> headers = {
+                                  "Content-type": "application/json",
+                                  "Origin": "*",
+                                  "type": "plane",
+                                  "starttimes": dateTimeString1,
+                                  "endtimes": dateTimeString2,
+                                  "startlocation": origin,
+                                  "destination": destination,
+                                };
+                                Response response = await post(
+                                    'https://safetravels.macrotechsolutions.us:9146/http://localhost/filterList',
+                                    headers: headers);
+                                //createAlertDialog(context);
+                                var tempJson = jsonDecode(response.body);
+                                print(tempJson);
+                                setState(() {
+                                  displayList = tempJson["data"];
+                                });
+                                Navigator.of(context).pop();
+                              },
+                              child: Text("OK"),
+                            )
+                          ]);
+                    });
+              }),
           IconButton(
               icon: Icon(Icons.help),
               onPressed: () async {
@@ -1480,9 +1889,62 @@ class _PlanePageState extends State<PlanePage> {
           ],
         ),
       ),
-      body: ListView(
-        children: <Widget>[],
-      ),
+      body: ListView.builder(
+          itemCount: displayList.length == null ? 1 : displayList.length,
+          itemBuilder: (context, index) {
+            return Padding(
+                padding:
+                const EdgeInsets.symmetric(vertical: 1.0, horizontal: 4.0),
+                child: Card(
+                  child: ListTile(
+                    onTap: () {
+                      dispose() {
+                        SystemChrome.setPreferredOrientations([
+                          DeviceOrientation.landscapeRight,
+                          DeviceOrientation.landscapeLeft,
+                          DeviceOrientation.portraitUp,
+                          DeviceOrientation.portraitDown,
+                        ]);
+                        super.dispose();
+                      }
+
+                      Navigator.push(
+                          context,
+                          new MaterialPageRoute(
+                              builder: (context) => new MapPage(
+                                  vehicleID: displayList[index]["vehiclekey"],
+                                  vehicleType: "plane",
+                                  timeID: displayList[index]["timekey"])));
+                    },
+                    leading: CircleAvatar(
+                      backgroundImage: AssetImage('assets/plane.png'),
+                    ),
+                    title: index == 0 ? (Text.rich(
+                      TextSpan(
+                        children: <TextSpan>[
+                          TextSpan(
+                            text: 'RECOMMENDED\n',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,),
+                          ),
+                          TextSpan(
+                            text:
+                            '${displayList[index]["startlocation"]} to ${displayList[index]["destination"]}\n',
+                            style: TextStyle(fontSize: 20),
+                          ),
+                        ],
+                      ),
+                    )) : (Text("${displayList[index]["startlocation"]} to ${displayList[index]["destination"]}")),
+                    subtitle: Text(
+                        "${displayList[index]["starttimes"]} to ${displayList[index]["endtimes"]}"),
+                    trailing: CircleAvatar(
+                        backgroundColor: HexColor(displayList[index]["hex"]),
+                        child: Text("${displayList[index]["risk"] * 100}%",
+                            style: TextStyle(fontSize: 12.0))),
+                  ),
+                ));
+          }),
     );
   }
 }
@@ -1764,7 +2226,7 @@ class _MapPageState extends State<MapPage> {
     ]);
     return Scaffold(
       appBar: AppBar(
-        title: Text("SafeTravels Seating View"),
+        title: Text("SafeTravels Seating"),
         actions: <Widget>[
           IconButton(
               icon: Icon(Icons.help),
@@ -1784,7 +2246,7 @@ class _MapPageState extends State<MapPage> {
                           ),
                           TextSpan(
                             text:
-                            'View the seating chart for the selected bus. The blue seat indicates which seat is recommended.\n',
+                            'View the seating chart for the selected vehicle. The blue seat indicates which seat is recommended.\n',
                             style: TextStyle(fontSize: 20),
                           ),
                         ],

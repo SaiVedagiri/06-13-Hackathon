@@ -92,6 +92,7 @@ const server = http.createServer(function (req, res) {
     let destination = req.headers.destination;
     let starttimes = req.headers.starttimes.split(",");
     let endtimes = req.headers.endtimes.split(",");
+    let dimensions = req.headers.dimensions
     let risk = 0.0;
     let returnVal;
     if (!type || type == "" || !startlocation || startlocation == "" || !destination || destination == "" || !starttimes || !endtimes || endtimes == "") {
@@ -104,6 +105,7 @@ const server = http.createServer(function (req, res) {
       url.child(key).set({
         startlocation: startlocation,
         destination: destination,
+        dimensions: dimensions,
         times: {}
       })
       for (let x = 0; x<starttimes.length; x++) {
@@ -295,6 +297,25 @@ const server = http.createServer(function (req, res) {
         returnList.push(returnJSON);
       }
     }
+
+    let minimumRisk = 1;
+    let minimumID = 0;
+    for (let x = 0; x<returnList.length; x++) {
+      if (returnList[x].risk < minimumRisk) {
+        minimumRisk = returnList[x].risk;
+        minimumID = x;
+      }
+    }
+    
+    let memory = returnList[0];
+    returnList[0] = returnList[minimumID];
+    for (let x = 1; x<minimumID; x++) {
+      let temp = returnList[x];
+      returnList[x] = memory;
+      memory = temp;
+    }
+    returnList[minimumID] = memory;
+    
     res.send({data: returnList});
   })
   .post('/filterList', async function (req, res) {
@@ -352,6 +373,25 @@ const server = http.createServer(function (req, res) {
         }
       }
     }
+     
+    let minimumRisk = 1;
+    let minimumID = 0;
+    for (let x = 0; x<returnList.length; x++) {
+      if (returnList[x].risk < minimumRisk) {
+        minimumRisk = returnList[x].risk;
+        minimumID = x;
+      }
+    }
+    
+    let memory = returnList[0];
+    returnList[0] = returnList[minimumID];
+    for (let x = 1; x<minimumID; x++) {
+      let temp = returnList[x];
+      returnList[x] = memory;
+      memory = temp;
+    }
+    returnList[minimumID] = memory;
+
     res.send({data: returnList});
   })
   .post("/getSeating", async function(req, res) {
@@ -414,26 +454,25 @@ const server = http.createServer(function (req, res) {
         }
       }
     }
-    let lowestScore = 9999999999;
-    let bestPosition = ""
+    let lowestScore = 0;
+    let bestPosition = "0,0"
 
     for (let x = 0; x<returnArray.length; x++) {
       score = 0;
       if (returnArray[x].hex == "808080") {
         for (let z = 0; z<fullArray.length; z++) {
           distance = getDistance(returnArray[x], fullArray[z]);
-          console.log(distance);
-          score += distance * fullArray[z].risk;
+          score += distance * (1-fullArray[z].risk);
         }
-        console.log(returnArray[x].position);
-        console.log(score);
-        if (score < lowestScore) {
+        if (score > lowestScore) {
           lowestScore = score;
           bestPosition = returnArray[x].position;
         }
       }
     }
-
+    
+    let editPosition = (parseInt(bestPosition.split(",")[1]) * parseInt(dimensions.split(",")[0]) + parseInt(bestPosition.split(",")[0]));
+    returnArray[editPosition].hex = "0000ff";
     res.send({data: returnArray, dimensions: dimensions, best: bestPosition})
   })
   .post('/maskDetection', async function (req, res) {
@@ -444,6 +483,7 @@ const server = http.createServer(function (req, res) {
     let nomasks = req.headers.nomasks;
     let datetime = req.headers.time;
     let busid = req.headers.busid;
+    let bustimeid = req.headers.bustimeid
 
     myVal = await database.ref(`vehicles/${type}/${busid}/times`).once("value");
     myVal = myVal.val();
@@ -465,29 +505,65 @@ const server = http.createServer(function (req, res) {
     const busid = req.headers.busid;
     const type = req.headers.type;
     const datetime = req.headers.datetime;
+    const datetimeid = req.headers.datetimeid;
 
-    let myVal2 = await database.ref(`vehicles/${type}/${busid}/times`).once('value');
-    myVal2 = myVal2.val();
-    let masks = 0; 
-    for (key in myVal2) {
-      masks += myVal2[key].masks;
-    }
-    masks = masks.toString();
+    let masks = 0;
+    let riskscore = 0;
+    console.log(datetimeid)
+    myVal = await database.ref(`vehicles/${type}/${busid}/times/${datetimeid}`).once("value");
+    myVal = myVal.val(); 
 
-    let myVal3 = await database.ref(`vehicles/${type}/${busid}/times`).once('value');
-    myVal3 = myVal3.val();
-    var riskscore = []
-    for (key in myVal3) {
-      let user = myVal3[key].user
-      let myVal4 = await database.ref(`users/${user}`).once('value');
-      myVal4 = myVal4.val();
-      for (key1 in myVal4) {
-        let score = myVal4[key1].risk 
-        riskscore.push(score);
-      }
-    }
-    res.send(masks);
-    console.log('hi')
+    console.log(myVal)
+    // for (key in myVal) {
+    //   if (Date.parse(datetime) > Date.parse(myVal[key].starttimes) && Date.parse(datetime) >= Date.parse(myVal[key].endtimes)) {
+    //     let busTimeId = key;
+    //     let myVal2 = await database.ref(`vehicles/${type}/${busid}/times/${busTimeId}`).once('value');
+    //     myVal2 = myVal2.val();
+    //     console.log(myVal2)
+    //     for (key2 in myVal2) {
+    //       // console.log(myVal2[key2].masks)
+    //       masks += myVal2[key2].masks;
+    //     }
+    //     busTimeId = datetimeid;
+
+    //     let myVal3 = await database.ref(`vehicles/${type}/${busid}/times/${busTimeId}/seating`).once('value');
+    //     myVal3 = myVal3.val();
+    //     for(key3 in myVal3) {
+    //       let user = myVal3[key3].user
+    //       let myVal4 = await database.ref(`users/${user}`).once('value')
+    //       myVal4 = myVal4.val();
+    //       for (key4 in myVal4) {
+    //         let score = myVal4[key4].risk 
+    //         riskscore += score;
+    //       }
+    //     }
+    //   }
+    // }
+
+    // console.log(masks);
+    // console.log(riskscore)
+
+    // let myVal2 = await database.ref(`vehicles/${type}/${busid}/times`).once('value');
+    // myVal2 = myVal2.val();
+    // let masks = 0; 
+    // for (key in myVal2) {
+    //   masks += myVal2[key].masks;
+    // }
+    // masks = masks.toString();
+
+    // let myVal3 = await database.ref(`vehicles/${type}/${busid}/times`).once('value');
+    // myVal3 = myVal3.val();
+    // var riskscore = []
+    // for (key in myVal3) {
+    //   let user = myVal3[key].user
+    //   let myVal4 = await database.ref(`users/${user}`).once('value');
+    //   myVal4 = myVal4.val();
+    //   for (key1 in myVal4) {
+    //     let score = myVal4[key1].risk 
+    //     riskscore.push(score);
+    //   }
+    // }
+    res.send('masks');
   })
   .listen(PORT, () => console.log(`Listening on ${PORT}`));
 
@@ -521,11 +597,11 @@ const server = http.createServer(function (req, res) {
   }
 
   function getDistance(object1, object2) {
-    let x1 = object1.position.split(",")[0];
-    let x2 = object2.position.split(",")[0];
-    let y1 = object1.position.split(",")[1];
-    let y2 = object2.position.split(",")[1];
-    let distance = Math.sqrt((x2-x1)^2 + (y2-y1)^1);
+    let x1 = parseInt(object1.position.split(",")[0]);
+    let x2 = parseInt(object2.position.split(",")[0]);
+    let y1 = parseInt(object1.position.split(",")[1]);
+    let y2 = parseInt(object2.position.split(",")[1]);
+    let distance = Math.sqrt((x2-x1) ** 2 + (y2-y1) ** 2);
     return distance;
   }
   
