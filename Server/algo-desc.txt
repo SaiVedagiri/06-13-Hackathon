@@ -1,0 +1,40 @@
+How the algorithm will work to give a risk score (0-1) for a person:
+
+Will be calculated at every stop
+
+Input (currently):
+ - # w/ mask and # w/o mask
+ - Number of people on bus
+ - Risk scores of every other person
+ - Duration of the bus ride
+ - Percent currently infected
+ - Historic risk data (ie risk from each ride for past 14 days)
+
+Process:
+ - Count number of people and get their risk score
+ - Risk score represents probability that they have it
+ - So do 1-risk for each and multiply together
+ - That gives you probability no one has it
+ - So do 1-total_prob to get total_risk (ie risk of the entire bus just based on previous risk)
+
+ - Next, we modify that total risk with global bus data
+ - Get the number of mask wearers / total
+ - Multiply that by (17.4/3.1). If below 1, make it 1 (cause we don't want to increase risk, we only decrease)
+ - Divide total risk by that number, so that's corrected by mask wearing
+
+ - Next we use distance of everyone else ie proximity
+ - Get proportion of people sitting that are > 1m apart divided by total
+ - Mult that by (12.8/2.6). If below 1, make it 1 (cause we don't want to increase risk, we only decrease)
+ - Divide total risk by that number, so that's corrected by distance
+
+ - Finally we correct using the duration of the bus ride
+ - Based on rough estimates, need around 1000 virus particles to be infected
+ - So say very little talking, thats 20 virus particals per minute, so 50 minutes for 1000
+ - Use some sort of constant, divide time by 50 (max it out at 1) and that's how much your risk increases
+
+ - OPTIONAL: Adding coughs
+ - Say max 5 coughs, mult by some constant and mult that into the bus risk
+
+After ride evaluation:
+ - You get saved that risk score from the bus
+ - Then to get your risk score, mult all (1-bus_score) together and do 1 minus that
