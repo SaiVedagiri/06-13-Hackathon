@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_webview_plugin/flutter_webview_plugin.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart';
 import 'dart:async';
@@ -11,6 +10,7 @@ import 'package:datetime_picker_formfield/datetime_picker_formfield.dart';
 import 'package:intl/intl.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:flutter/rendering.dart';
 
 String userID = "";
 String username = "";
@@ -28,6 +28,8 @@ var dateTimeString2;
 var scheduledTime1;
 var scheduledTime2;
 var displayList = [];
+var seatList = [];
+var seatDimensions = "1,1";
 
 void main() {
   runApp(MyApp());
@@ -263,8 +265,8 @@ class SignInPage extends StatefulWidget {
 }
 
 class _SignInPageState extends State<SignInPage> {
-  Future<String> createAlertDialog(BuildContext context, String title,
-      String body) {
+  Future<String> createAlertDialog(
+      BuildContext context, String title, String body) {
     return showDialog(
         context: context,
         builder: (context) {
@@ -499,8 +501,8 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
-  Future<String> createAlertDialog(BuildContext context, String title,
-      String body) {
+  Future<String> createAlertDialog(
+      BuildContext context, String title, String body) {
     return showDialog(
         context: context,
         builder: (context) {
@@ -776,8 +778,8 @@ class SetupPage extends StatefulWidget {
 }
 
 class _SetupPageState extends State<SetupPage> {
-  Future<String> createAlertDialog(BuildContext context, String title,
-      String body) {
+  Future<String> createAlertDialog(
+      BuildContext context, String title, String body) {
     return showDialog(
         context: context,
         builder: (context) {
@@ -944,8 +946,8 @@ class _BusPageState extends State<BusPage> {
     });
   }
 
-  Future<String> createAlertDialog(BuildContext context, String title,
-      String body) {
+  Future<String> createAlertDialog(
+      BuildContext context, String title, String body) {
     return showDialog(
         context: context,
         builder: (context) {
@@ -1000,125 +1002,118 @@ class _BusPageState extends State<BusPage> {
                 showDialog(
                     context: context,
                     builder: (context) {
+                      origin = "";
+                      destination = "";
                       return AlertDialog(
                           title: Text("Filter"),
-                          content: Column(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 20.0),
-                                ),
-                                Text("Start Time: "),
-                                DateTimeField(
-                                  format:
-                                  DateFormat('EEEE, MMMM dd, y @ HH:mm '),
-                                  onShowPicker: (context, currentValue) async {
-                                    DateTime now = DateTime.now();
-                                    String year =
-                                    DateFormat('yyyy').format(now);
-                                    final date = await showDatePicker(
-                                        context: context,
-                                        firstDate: DateTime(int.parse(year)),
-                                        initialDate:
-                                        currentValue ?? DateTime.now(),
-                                        lastDate:
-                                        DateTime(int.parse(year) + 10));
-                                    if (date != null) {
-                                      final time = await showTimePicker(
-                                        context: context,
-                                        initialTime: TimeOfDay.fromDateTime(
-                                            currentValue ?? DateTime.now()),
-                                      );
-                                      dateTimeString1 = DateFormat(
-                                          "yyyy-MM-dd HH:mm")
-                                          .format(
-                                          DateTimeField.combine(date, time))
-                                          .toString();
-                                      setState(() {
-                                        scheduledTime1 =
-                                            DateTimeField.combine(date, time)
-                                                .toString();
-                                      });
-                                      return DateTimeField.combine(date, time);
-                                    } else {
-                                      return currentValue;
-                                    }
-                                  },
-                                  initialValue: DateTime.now(),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 20.0),
-                                ),
-                                Text("End Time: "),
-                                DateTimeField(
-                                  format:
-                                  DateFormat('EEEE, MMMM dd, y @ HH:mm '),
-                                  onShowPicker: (context, currentValue) async {
-                                    DateTime now = DateTime.now();
-                                    String year =
-                                    DateFormat('yyyy').format(now);
-                                    final date = await showDatePicker(
-                                        context: context,
-                                        firstDate: DateTime(int.parse(year)),
-                                        initialDate:
-                                        currentValue ?? DateTime.now(),
-                                        lastDate:
-                                        DateTime(int.parse(year) + 10));
-                                    if (date != null) {
-                                      final time = await showTimePicker(
-                                        context: context,
-                                        initialTime: TimeOfDay.fromDateTime(
-                                            currentValue ?? DateTime.now()),
-                                      );
-                                      dateTimeString2 = DateFormat(
-                                          "yyyy-MM-dd HH:mm")
-                                          .format(
-                                          DateTimeField.combine(date, time))
-                                          .toString();
-                                      setState(() {
-                                        scheduledTime2 =
-                                            DateTimeField.combine(date, time)
-                                                .toString();
-                                      });
-                                      return DateTimeField.combine(date, time);
-                                    } else {
-                                      return currentValue;
-                                    }
-                                  },
-                                  initialValue: DateTime.now(),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 20.0),
-                                ),
-                                TextField(
-                                  decoration: InputDecoration(
-                                      labelText: 'Origin', hintText: "Origin"),
-                                  onChanged: (String str) {
-                                    setState(() {
-                                      origin = str;
-                                    });
-                                  },
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 20.0),
-                                ),
-                                TextField(
-                                  decoration: InputDecoration(
-                                      labelText: 'Destination',
-                                      hintText: "Destination"),
-                                  onChanged: (String str) {
-                                    setState(() {
-                                      destination = str;
-                                    });
-                                  },
-                                ),
-                              ]),
+                          content:
+                          ListView(shrinkWrap: true, children: <Widget>[
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                            ),
+                            Text("Start Time: "),
+                            DateTimeField(
+                              format: DateFormat('EEEE, MMMM dd, y @ HH:mm '),
+                              onShowPicker: (context, currentValue) async {
+                                DateTime now = DateTime.now();
+                                String year = DateFormat('yyyy').format(now);
+                                final date = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(int.parse(year)),
+                                    initialDate: currentValue ?? DateTime.now(),
+                                    lastDate: DateTime(int.parse(year) + 10));
+                                if (date != null) {
+                                  final time = await showTimePicker(
+                                    context: context,
+                                    initialTime: TimeOfDay.fromDateTime(
+                                        currentValue ?? DateTime.now()),
+                                  );
+                                  dateTimeString1 = DateFormat(
+                                      "yyyy-MM-dd HH:mm")
+                                      .format(DateTimeField.combine(date, time))
+                                      .toString();
+                                  setState(() {
+                                    scheduledTime1 =
+                                        DateTimeField.combine(date, time)
+                                            .toString();
+                                  });
+                                  return DateTimeField.combine(date, time);
+                                } else {
+                                  return currentValue;
+                                }
+                              },
+                              initialValue: DateTime.now(),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                            ),
+                            Text("End Time: "),
+                            DateTimeField(
+                              format: DateFormat('EEEE, MMMM dd, y @ HH:mm '),
+                              onShowPicker: (context, currentValue) async {
+                                DateTime now = DateTime.now();
+                                String year = DateFormat('yyyy').format(now);
+                                final date = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(int.parse(year)),
+                                    initialDate: currentValue ?? DateTime.now(),
+                                    lastDate: DateTime(int.parse(year) + 10));
+                                if (date != null) {
+                                  final time = await showTimePicker(
+                                    context: context,
+                                    initialTime: TimeOfDay.fromDateTime(
+                                        currentValue ?? DateTime.now()),
+                                  );
+                                  dateTimeString2 = DateFormat(
+                                      "yyyy-MM-dd HH:mm")
+                                      .format(DateTimeField.combine(date, time))
+                                      .toString();
+                                  setState(() {
+                                    scheduledTime2 =
+                                        DateTimeField.combine(date, time)
+                                            .toString();
+                                  });
+                                  return DateTimeField.combine(date, time);
+                                } else {
+                                  return currentValue;
+                                }
+                              },
+                              initialValue: DateTime.now(),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                            ),
+                            TextField(
+                              decoration: InputDecoration(
+                                  labelText: 'Origin', hintText: "Origin"),
+                              onChanged: (String str) {
+                                setState(() {
+                                  origin = str;
+                                });
+                              },
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                            ),
+                            TextField(
+                              decoration: InputDecoration(
+                                  labelText: 'Destination',
+                                  hintText: "Destination"),
+                              onChanged: (String str) {
+                                setState(() {
+                                  destination = str;
+                                });
+                              },
+                            ),
+                          ]),
                           actions: <Widget>[
                             MaterialButton(
                               elevation: 5.0,
                               onPressed: () async {
+                                print(dateTimeString1);
+                                print(dateTimeString2);
+                                print(origin);
+                                print(destination);
                                 Map<String, String> headers = {
                                   "Content-type": "application/json",
                                   "Origin": "*",
@@ -1133,6 +1128,7 @@ class _BusPageState extends State<BusPage> {
                                     headers: headers);
                                 //createAlertDialog(context);
                                 var tempJson = jsonDecode(response.body);
+                                print(tempJson);
                                 setState(() {
                                   displayList = tempJson["data"];
                                 });
@@ -1204,20 +1200,43 @@ class _BusPageState extends State<BusPage> {
           itemCount: displayList.length == null ? 1 : displayList.length,
           itemBuilder: (context, index) {
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 1.0, horizontal: 4.0),
-              child: Card(
-                child: ListTile(
-                  onTap: (){
-                  },
-                  leading: CircleAvatar(backgroundImage: AssetImage('assets/bus_icon.jpg'),),
-                    title: Text("${displayList[index]["startlocation"]} to ${displayList[index]["destination"]}"),
-                  subtitle: Text("${displayList[index]["starttimes"]} to ${displayList[index]["endtimes"]}"),
-                  trailing: CircleAvatar(backgroundColor: HexColor(displayList[index]["hex"]),),
-                ),
-              )
-            );
-          }
-      ),
+                padding:
+                const EdgeInsets.symmetric(vertical: 1.0, horizontal: 4.0),
+                child: Card(
+                  child: ListTile(
+                    onTap: () {
+                      dispose() {
+                        SystemChrome.setPreferredOrientations([
+                          DeviceOrientation.landscapeRight,
+                          DeviceOrientation.landscapeLeft,
+                          DeviceOrientation.portraitUp,
+                          DeviceOrientation.portraitDown,
+                        ]);
+                        super.dispose();
+                      }
+
+                      Navigator.push(
+                          context,
+                          new MaterialPageRoute(
+                              builder: (context) => new MapPage(
+                                  vehicleID: displayList[index]["vehiclekey"],
+                                  vehicleType: "bus",
+                                  timeID: displayList[index]["timekey"])));
+                    },
+                    leading: CircleAvatar(
+                      backgroundImage: AssetImage('assets/bus_icon.jpg'),
+                    ),
+                    title: Text(
+                        "${displayList[index]["startlocation"]} to ${displayList[index]["destination"]}"),
+                    subtitle: Text(
+                        "${displayList[index]["starttimes"]} to ${displayList[index]["endtimes"]}"),
+                    trailing: CircleAvatar(
+                        backgroundColor: HexColor(displayList[index]["hex"]),
+                        child: Text("${displayList[index]["risk"] * 100}%",
+                            style: TextStyle(fontSize: 12.0))),
+                  ),
+                ));
+          }),
     );
   }
 }
@@ -1232,8 +1251,8 @@ class TrainPage extends StatefulWidget {
 }
 
 class _TrainPageState extends State<TrainPage> {
-  Future<String> createAlertDialog(BuildContext context, String title,
-      String body) {
+  Future<String> createAlertDialog(
+      BuildContext context, String title, String body) {
     return showDialog(
         context: context,
         builder: (context) {
@@ -1355,8 +1374,8 @@ class PlanePage extends StatefulWidget {
 }
 
 class _PlanePageState extends State<PlanePage> {
-  Future<String> createAlertDialog(BuildContext context, String title,
-      String body) {
+  Future<String> createAlertDialog(
+      BuildContext context, String title, String body) {
     return showDialog(
         context: context,
         builder: (context) {
@@ -1478,8 +1497,8 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  Future<String> createAlertDialog(BuildContext context, String title,
-      String body) {
+  Future<String> createAlertDialog(
+      BuildContext context, String title, String body) {
     return showDialog(
         context: context,
         builder: (context) {
@@ -1659,6 +1678,129 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: Text("Update RFID Tag"))),
         ],
       ),
+    );
+  }
+}
+
+class MapPage extends StatefulWidget {
+  MapPage({Key key, this.vehicleID, this.vehicleType, this.timeID})
+      : super(key: key);
+
+  final String vehicleID;
+  final String vehicleType;
+  final String timeID;
+
+  @override
+  _MapPageState createState() => _MapPageState();
+}
+
+class _MapPageState extends State<MapPage> {
+  initState() {
+    super.initState();
+    initStateFunction();
+  }
+
+  initStateFunction() async {
+    Map<String, String> headers = {
+      "Content-type": "application/json",
+      "Origin": "*",
+      "vehiclekey": widget.vehicleID,
+      "type": widget.vehicleType,
+      "timekey": widget.timeID,
+    };
+    Response response = await post(
+        'https://safetravels.macrotechsolutions.us:9146/http://localhost/getSeating',
+        headers: headers);
+    var tempJson = jsonDecode(response.body);
+    setState(() {
+      seatList = tempJson["data"].cast<Map<String, Object>>();
+      seatDimensions = tempJson["dimensions"];
+    });
+  }
+
+  Future<String> createAlertDialog(BuildContext context, String title, String body) {
+    return showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+              title: Text(title),
+              content: Text(body),
+              actions: <Widget>[
+                MaterialButton(
+                  elevation: 5.0,
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text("OK"),
+                )
+              ]);
+        });
+  }
+
+  Future<String> helpContext(BuildContext context, String title, Widget body) {
+    return showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+              title: Text(title),
+              content: body,
+              actions: <Widget>[
+                MaterialButton(
+                  elevation: 5.0,
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text("OK"),
+                )
+              ]);
+        });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("SafeTravels Seating View"),
+        actions: <Widget>[
+          IconButton(
+              icon: Icon(Icons.help),
+              onPressed: () async {
+                helpContext(
+                    context,
+                    "Help",
+                    Text.rich(
+                      TextSpan(
+                        children: <TextSpan>[
+                          TextSpan(
+                            text: 'Seating View\n',
+                            style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline),
+                          ),
+                          TextSpan(
+                            text:
+                            'View the seating chart for the selected bus. The blue seat indicates which seat is recommended.\n',
+                            style: TextStyle(fontSize: 20),
+                          ),
+                        ],
+                      ),
+                    ));
+              })
+        ],
+      ),
+      body: GridView.count(
+                  crossAxisCount: int.parse(seatDimensions.substring(0,1)),
+                  children: List.generate(seatList.length, (index){
+                    return new Container(
+                        child: new Padding(padding: const EdgeInsets.all(15.0), child: Image(image: AssetImage("assets/${seatList[index]["hex"]}seat.png")))
+                      );
+                  })
+              ),
     );
   }
 }

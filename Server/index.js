@@ -224,63 +224,53 @@ const server = http.createServer(function (req, res) {
     res.setHeader('Access-Control-Allow-Origin', 'https://safetravels.macrotechsolutions.us');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
     let rfid = req.query.rfid;
-    wss.clients.forEach(function each(client) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(`connect${rfid}`);
+    let busid = req.query.busid;
+    let type = req.query.type;
+    let position = req.query.position;
+    let userid = "";
+
+    myVal = await database.ref(`users`).once("value");
+    myVal = myVal.val();
+    for (key in myVal) {
+      if (myVal[key].rfid == rfid) {
+        userid = key;
       }
-    });
-    if (unlock) {
-      res.send('y');
-      let myVal = await database.ref('users').orderByChild('rfid').equalTo(rfid).once('value');
-      myVal = myVal.val()
-      let key;
-      for (key in myVal) {
-        let myVal2 = await database.ref('queue').orderByChild('user').equalTo(key).once('value');
-        myVal2 = myVal2.val()
-        if (myVal2) {
-          for (key1 in myVal2) {
-            let position = myVal2[key1].position
-            let myVal3 = await database.ref('queue').once('value');
-            myVal3 = myVal3.val()
-            for (key2 in myVal3) {
-              let num = myVal3.numOfPeople;
-              console.log(myVal3[key2].position);
-              console.log(position);
-              if (myVal3[key2].position > position) {
-                console.log("here");
-                console.log(key2);
-                database.ref(`queue/${key2}`).update({
-                  position: myVal3[key2].position - 1
-                })
-                database.ref(`queue/${key1}`).remove();
-                database.ref('queue').update({
-                  numOfPeople: num - 1
-                })
-              } else {
-                database.ref(`queue/${key1}`).remove()
-                database.ref('queue').update({
-                  numOfPeople: num - 1
-                })
-              }
-            }
-          }
-        }
-        let date = new Date();
-        let year = date.getFullYear();
-        let month = date.getMonth();
-        let day = date.getDate();
-        let hour = date.getHours();
-        let minute = date.getMinutes();
-        let currentDate = `${year}-${month}-${day} ${hour}:${minute}`
-        database.ref('inStore').push({
-          time: currentDate,
-          user: key
-        })
-      }
-    } else {
-      res.send('n');
     }
-    unlock = false;
+  
+    myVal = await database.ref(`vehicles/${type}/${busid}/times`).once("value");
+    myVal = myVal.val();
+    let busTimeId = "";
+    //let datetime = new Date();
+    let datetime = 8
+    for (key in myVal) {
+      if (Date.parse(datetime) > Date.parse(myVal[key].starttimes) && Date.parse(datetime) < Date.parse(myVal[key].endtimes)) {
+        busTimeId = key;
+      }
+    }
+
+    myVal = await database.ref(`rides`).once("value");
+    myVal = myVal.val();
+    let exist = false;
+    for (key in myVal) {
+      if (myVal[key].user == userid && myVal[key].bus == busTimeId) {
+        exist = true;
+      }
+    }
+    if (exist == false) {
+      let logPut = {
+        user: userid,
+        busid: busid,
+        bustimeid: busTimeId
+      }
+      let seatingPut = {
+        user: userid,
+        position: position
+      }
+      await database.ref(`rides`).push(logPut);
+      await database.ref(`vehicles/${type}/${busid}/times/${busTimeId}/seating`).push(seatingPut);
+    }
+    res.send("success");
+
   })
   .post('/fullList', async function (req, res) {
     res.setHeader('Access-Control-Allow-Origin', 'https://safetravels.macrotechsolutions.us');
@@ -298,7 +288,9 @@ const server = http.createServer(function (req, res) {
           starttimes: myVal[key].times[key2].starttimes,
           endtimes: myVal[key].times[key2].endtimes,
           risk: myVal[key].times[key2].risk,
-          hex: getHEX(myVal[key].times[key2].risk)
+          hex: getHEX(myVal[key].times[key2].risk),
+          vehiclekey: key,
+          timekey: key2
         }
         returnList.push(returnJSON);
       }
@@ -313,25 +305,35 @@ const server = http.createServer(function (req, res) {
     let endtimes = req.headers.endtimes;
     let startlocation = req.headers.startlocation;
     let destination = req.headers.destination;
+
     let returnList = [];
     myVal = await database.ref(`vehicles/${type}`).once("value");
     myVal = myVal.val();
     for (key in myVal) {
       for (key2 in myVal[key].times) {
         let add = true;
-        if (myVal[key].startlocation == null || myVal[key].startlocation == "" || myVal[key].startlocation != startlocation) {
-          add = false;
+        if (startlocation != null && startlocation != "" && startlocation != "null") {
+          if (myVal[key].startlocation != startlocation) {
+            add = false;
+          }
         }
-        if (myVal[key].destination == null || myVal[key].destination == "" || myVal[key].destination != destination) {
-          add = false;
+        if (destination != null && destination != "" && destination != "null") {
+          if (myVal[key].destination != destination) {
+            add = false;
+          }
         }
-        if (myVal[key].times[key2].starttimes == null || myVal[key].times[key2].starttimes == "" || Date.parse(myVal[key].times[key2].starttimes) < Date.parse(starttimes)) {
-          add = false;
+        if (starttimes != null && starttimes != "" && starttimes != "null") {
+          if (Date.parse(myVal[key].times[key2].starttimes) < Date.parse(starttimes)) {
+            add = false;
+          }
         }
-        if (myVal[key].times[key2].endtimes == null || myVal[key].times[key2].endtimes == "" || Date.parse(myVal[key].times[key2].endtimes) > Date.parse(endtimes)) {
-          add = false;
+        if (endtimes != null && endtimes != "" && endtimes != "null") {
+          if (Date.parse(myVal[key].times[key2].endtimes) > Date.parse(endtimes)) {
+
+            add = false;
+          }
         }
-        if (myVal[key].times[key2].starttimes == myVal[key].times[key2].endtimes) {
+        if ((starttimes != null && starttimes != "" && starttimes != "null") && (endtimes != null && endtimes != "") && (starttimes == endtimes)) {
           add = false;
         }
         if (add == true) {
@@ -342,7 +344,9 @@ const server = http.createServer(function (req, res) {
           starttimes: myVal[key].times[key2].starttimes,
           endtimes: myVal[key].times[key2].endtimes,
           risk: myVal[key].times[key2].risk,
-          hex: getHEX(myVal[key].times[key2].risk)
+          hex: getHEX(myVal[key].times[key2].risk),
+          vehiclekey: key,
+          timekey: key2
         }
         returnList.push(returnJSON);
         }
@@ -350,36 +354,141 @@ const server = http.createServer(function (req, res) {
     }
     res.send({data: returnList});
   })
+  .post("/getSeating", async function(req, res) {
+    res.setHeader('Access-Control-Allow-Origin', 'https://safetravels.macrotechsolutions.us');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+
+    let vehiclekey = req.headers.vehiclekey;
+    let timekey = req.headers.timekey;
+    let type = req.headers.type;
+    let fullArray = [];
+    let returnArray = [];
+
+    let dimensions = await database.ref(`vehicles/${type}/${vehiclekey}`).once("value");
+    dimensions = dimensions.val();
+    dimensions = dimensions.dimensions;
+
+    myVal = await database.ref(`vehicles/${type}/${vehiclekey}/times/${timekey}/seating`).once("value");
+    myVal = myVal.val();
+    for (key in myVal) {
+      userId = myVal[key].user;
+      position = myVal[key].position;
+      myVal2 = await database.ref(`users/${userId}`).once("value");
+      myVal2 = myVal2.val();
+      let risk = myVal2.risk;
+      let toPut = 
+      {
+        risk: risk,
+        position: position,
+        hex: getHEX(risk)
+      }
+      fullArray.push(toPut);
+    }
+
+    let xNum = dimensions.split(",")[0];
+    let yNum = dimensions.split(",")[1];
+
+    for (let y = 0; y<yNum; y++) {
+      for (let x = 0; x<xNum; x++) {
+        let done = false;
+        for (let z = 0; z<fullArray.length; z++) {
+          if (fullArray[z].position == `${x},${y}`) {
+            let toPut = 
+            {
+              risk: fullArray[z].risk,
+              position: fullArray[z].position,
+              hex: getHEX(fullArray[z].risk)
+            }
+            returnArray.push(toPut);
+            done = true;
+          }
+        }
+        if (done == false) {
+          let toPut = 
+            {
+              risk: 0,
+              position: `${x},${y}`,
+              hex: "808080"
+            }
+            returnArray.push(toPut);
+        }
+      }
+    }
+    let lowestScore = 9999999999;
+    let bestPosition = ""
+
+    for (let x = 0; x<returnArray.length; x++) {
+      score = 0;
+      if (returnArray[x].hex == "808080") {
+        for (let z = 0; z<fullArray.length; z++) {
+          distance = getDistance(returnArray[x], fullArray[z]);
+          console.log(distance);
+          score += distance * fullArray[z].risk;
+        }
+        console.log(returnArray[x].position);
+        console.log(score);
+        if (score < lowestScore) {
+          lowestScore = score;
+          bestPosition = returnArray[x].position;
+        }
+      }
+    }
+
+    res.send({data: returnArray, dimensions: dimensions, best: bestPosition})
+  })
   .post('/maskDetection', async function (req, res) {
     res.setHeader('Access-Control-Allow-Origin', 'https://safetravels.macrotechsolutions.us');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
     let type = req.headers.type;
     let masks = req.headers.masks;
     let nomasks = req.headers.nomasks;
-    let time = req.headers.time;
+    let datetime = req.headers.time;
     let busid = req.headers.busid;
 
-    myVal = await database.ref(`vehicles/${type}/${busid}`).set("value");
+    myVal = await database.ref(`vehicles/${type}/${busid}/times`).once("value");
     myVal = myVal.val();
+    let busTimeId = "";
     for (key in myVal) {
-      let newList = [];
-      let add = false;
-      
-      if  (Date.parse(starttimes) > Date.parse(myVal[key].starttimes) && Date.parse(endtimes) > Date.parse(myVal[key].endtimes) && destination == myVal[key].destination && startlocation == myVal[key].startlocation) {
-        add = true;
-      }
-      if (add == true) {
-        newList.append(myVal[key].starttimes);
-        newList.append(myVal[key].endtimes);
-        newList.append(myVal[key].startlocation);
-        newList.append(myVal[key].destination);
-        newList.append(myVal[key].risk);
-        returnList.push(newList)
+      if (Date.parse(datetime) > Date.parse(myVal[key].starttimes) && Date.parse(datetime) < Date.parse(myVal[key].endtimes)) {
+        busTimeId = key
       }
     }
-    res.send(returnList);
-  })
 
+    await database.ref(`vehicles/${type}/${busid}/times/${busTimeId}/masks`).set(masks);
+    await database.ref(`vehicles/${type}/${busid}/times/${busTimeId}/nomasks`).set(nomasks);
+    res.send("success")
+  })
+  .post("/busrideFinished", async function(req, res) {
+    res.setHeader('Access-Control-Allow-Origin', 'https://safetravels.macrotechsolutions.us');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+
+    const busid = req.headers.busid;
+    const type = req.headers.type;
+    const datetime = req.headers.datetime;
+
+    let myVal2 = await database.ref(`vehicles/${type}/${busid}/times`).once('value');
+    myVal2 = myVal2.val();
+    let masks = 0; 
+    for (key in myVal2) {
+      masks += myVal2[key].masks;
+    }
+    masks = masks.toString();
+
+    let myVal3 = await database.ref(`vehicles/${type}/${busid}/times`).once('value');
+    myVal3 = myVal3.val();
+    var riskscore = []
+    for (key in myVal3) {
+      let user = myVal3[key].user
+      let myVal4 = await database.ref(`users/${user}`).once('value');
+      myVal4 = myVal4.val();
+      for (key1 in myVal4) {
+        let score = myVal4[key1].risk 
+        riskscore.push(score);
+      }
+    }
+    res.send(masks);
+    console.log('hi')
+  })
   .listen(PORT, () => console.log(`Listening on ${PORT}`));
 
   function hash(value) {
@@ -409,6 +518,15 @@ const server = http.createServer(function (req, res) {
       color = "f01c00";
     }
     return color;
+  }
+
+  function getDistance(object1, object2) {
+    let x1 = object1.position.split(",")[0];
+    let x2 = object2.position.split(",")[0];
+    let y1 = object1.position.split(",")[1];
+    let y2 = object2.position.split(",")[1];
+    let distance = Math.sqrt((x2-x1)^2 + (y2-y1)^1);
+    return distance;
   }
   
   var originBlacklist = parseEnvList(process.env.CORSANYWHERE_BLACKLIST);
