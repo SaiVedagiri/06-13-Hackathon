@@ -267,7 +267,7 @@ class Admin extends React.Component {
                             aria-label="Toggle navigation"><i className="fa
                                 fa-align-justify"></i></button></div>
                 </nav>
-                <section id="about" className="bg-primary" style={{ backgroundColor: "#ffffff", opacity: "1" }}>
+                <section id="about" style={{ backgroundColor: "#0079C6", opacity: "1" }}>
                     <div className="container">
                         <div className="row">
                             <div className="col offset-lg-8 mx-auto text-center">
@@ -277,7 +277,7 @@ class Admin extends React.Component {
                                     <hr className="light my-4"></hr>
                                 </div>
                                 <div className="table-responsive">
-                                    <table className="table" id="current">
+                                    <table style={{color: "white"}} className="table" id="current">
                                         <thead>
                                             <tr>
                                                 <th>Start Time</th>
@@ -318,11 +318,11 @@ class Admin extends React.Component {
                 </section>
 
                 <section id="portfolio" className="p-0"></section>
-                <section className="bg-dark text-white" style={{ backgroundImage: "url(&quot;assets/img/header%20background.jpg&quot;)" }}>
+                <section className="bg-light text-black" style={{ backgroundImage: "url(&quot;assets/img/header%20background.jpg&quot;)" }}>
                     <div className="container text-center">
                         <h2 className="mb-4">Trains</h2>
                         <div className="table-responsive">
-                            <table className="table" style={{ color: 'white' }} id="schedule">
+                            <table className="table" style={{ color: 'black' }} id="schedule">
                                 <thead>
                                     <tr>
                                         <th>Start Time</th>
@@ -359,9 +359,9 @@ class Admin extends React.Component {
                         </div>
                     </div>
                 </section>
-                <section id="about" className="bg-primary" style={{
+                <section id="about" style={{
                     backgroundColor:
-                        "#ffffff", opacity: "1", backgroundImage: "url(&quot;assets/img/white.jpg&quot;)"
+                        "#0079C6", opacity: "1", backgroundImage: "url(&quot;assets/img/white.jpg&quot;)"
                 }}>
                     <div className="container">
                         <div className="row">
@@ -372,7 +372,7 @@ class Admin extends React.Component {
                                     <hr className="light my-4"></hr>
                                 </div>
                                 <div className="table-responsive">
-                                    <table className="table" id="queue">
+                                    <table className="table" style={{ color: 'white' }} id="queue">
                                         <thead>
                                             <tr>
                                                 <th>Start Time</th>

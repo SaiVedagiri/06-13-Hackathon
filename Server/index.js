@@ -529,8 +529,7 @@ const server = http.createServer(function (req, res) {
     let timeid = req.headers.timeid
 
     const val = await database.ref(`vehicles/${type}/${vehicleid}/times/${timeid}`).once("value")
-    console.log(val.val())
-    if (typeof val.val().coughs !== "string") {
+    if (typeof val.val().coughs !== "number") {
       await database.ref(`vehicles/${type}/${vehicleid}/times/${timeid}/coughs`).set(1)
     } else {
       await database.ref(`vehicles/${type}/${vehicleid}/times/${timeid}/coughs`).set(1+val.val().coughs)
@@ -551,25 +550,49 @@ const server = http.createServer(function (req, res) {
     var last_ride_risk = 0;
     let historical_risk = []
     let duration = 0;
-    myVal = await database.ref(`vehicles/${type}/${vehicleid}/times/${datetimeid}`).once("value");
+    let myVal = await database.ref(`vehicles/${type}/${vehicleid}/times/${datetimeid}`).once("value");
     myVal = myVal.val(); 
-    number_masks = myVal.masks
-    last_ride_risk = myVal.risk
     
-    for (key in myVal.seating) {
-      let user = myVal.seating[key].user;
-      let myVal2 = await database.ref(`users/${user}`).once('value'); 
+    masks = myVal.masks
+    last_ride_risk = myVal.risk
+
+    let seating = myVal.seating
+    for (key in seating) {
+      let user = seating[key].user 
+      
+      let myVal2 = await database.ref(`users/${user}`).once('value')
       myVal2 = myVal2.val();
-      // console.log(myVal2)
-      // riskscore.push(myVal2.risk)
+      
+      let score = myVal2.risk;
+      people_risk_scores.push(score);
+      
+      let myVal3 = await database.ref('rides').orderByChild('user').equalTo(user).once('value').then(function(snapshot) {
+        if (snapshot.exists()) {
+          snapshot.forEach(async function(childSnapshot) {
+            let vehicleid = childSnapshot.val().vehicleid 
+            let type = childSnapshot.val().type
+            let myVal4 = await database.ref(`vehicles/${type}/${vehicleid}`).once('value')
+            myVal4 = myVal4.val();
+            for (keys in myVal4) {
+              console.log(myVal4[keys])
+            }
+          })
+        } else {
+          console.log('User doesn\'t exist')
+        }
+      })
     }
 
-    let myVal2 = await database.ref(`vehicles/${type}/${vehicleid}/times`).once('value', snapshot => {
-      snapshot.forEach(function (childSnapshot) {
-        let child = childSnapshot.val().seating 
-        console.log(child)
-      })
-    })
+    console.log(last_ride_risk)
+
+    // let myVal2 = await database.ref(`vehicles/${type}/${vehicleid}/times`).once('value', snapshot => {
+    //   snapshot.forEach(function (childSnapshot) {
+    //     let child = childSnapshot.val().seating 
+    //     for (key in child) {
+    //       console.log(child[key].user)
+    //     }
+    //   })
+    // })
     
     res.send(people_risk_scores)
   })
