@@ -16,6 +16,33 @@ var app = admin.initializeApp({
   databaseURL: "https://hackathon-5c5a7.firebaseio.com"
 });
 
+function calc_bus_risk(number_masks, people_risk_scores, duration) {
+  let total_risk = 1
+  for (let person_risk of people_risk_scores) {
+      total_risk *= (1-person_risk)
+  }
+  total_risk = 1 - total_risk
+
+  const prop_mask = number_masks / people_risk_scores.length
+  const mask_risk = max(prop_mask * (17.4/3.1), 1)
+  total_risk /= mask_risk
+
+  const duration_prop = min(duration / 50, 1)
+  total_risk *= duration_prop
+
+  return total_risk
+}
+
+function calc_person_risk(last_ride_risk, historical_risk) {
+  const risks = historical_risk + [last_ride_risk]
+
+  total_risk = 1
+  for (let risk of risks) {
+      total_risk *= (1-risk)
+  }
+  total_risk = 1 - total_risk
+}
+
 var database = admin.database();
 
 const server = http.createServer(function (req, res) {
@@ -33,10 +60,13 @@ const server = http.createServer(function (req, res) {
   });
 
   express()
-  .use(express.static(path.join(__dirname, 'public')))
+  .use(express.static(path.join(__dirname, 'build')))
   .use(bodyParser.urlencoded({ extended: false }))
   .set('views', path.join(__dirname, 'views'))
   .set('view engine', 'ejs')
+  .get('/*', function (req, res) {
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+  })
   .post('/userGoogleSignIn', async function (req, res) {
     res.setHeader('Access-Control-Allow-Origin', 'https://safetravels.macrotechsolutions.us');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
@@ -226,9 +256,10 @@ const server = http.createServer(function (req, res) {
     res.setHeader('Access-Control-Allow-Origin', 'https://safetravels.macrotechsolutions.us');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
     let rfid = req.query.rfid;
-    let busid = req.query.busid;
+    let vehicleid = req.query.vehicleid;
     let type = req.query.type;
     let position = req.query.position;
+    let timeid = req.query.timeid;
     let userid = "";
 
     myVal = await database.ref(`users`).once("value");
@@ -239,14 +270,13 @@ const server = http.createServer(function (req, res) {
       }
     }
   
-    myVal = await database.ref(`vehicles/${type}/${busid}/times`).once("value");
+    myVal = await database.ref(`vehicles/${type}/${vehicleid}/times`).once("value");
     myVal = myVal.val();
-    let busTimeId = "";
     //let datetime = new Date();
-    let datetime = 8
+    let datetime = 8;
     for (key in myVal) {
       if (Date.parse(datetime) > Date.parse(myVal[key].starttimes) && Date.parse(datetime) < Date.parse(myVal[key].endtimes)) {
-        busTimeId = key;
+        //timeid = key;
       }
     }
 
@@ -254,22 +284,22 @@ const server = http.createServer(function (req, res) {
     myVal = myVal.val();
     let exist = false;
     for (key in myVal) {
-      if (myVal[key].user == userid && myVal[key].bus == busTimeId) {
+      if (myVal[key].user == userid && myVal[key].timeid == timeid) {
         exist = true;
       }
     }
     if (exist == false) {
       let logPut = {
         user: userid,
-        busid: busid,
-        bustimeid: busTimeId
+        vehicleid: vehicleid,
+        timeid: timeid
       }
       let seatingPut = {
         user: userid,
         position: position
       }
       await database.ref(`rides`).push(logPut);
-      await database.ref(`vehicles/${type}/${busid}/times/${busTimeId}/seating`).push(seatingPut);
+      await database.ref(`vehicles/${type}/${vehicleid}/times/${timeid}/seating`).push(seatingPut);
     }
     res.send("success");
 
@@ -290,6 +320,7 @@ const server = http.createServer(function (req, res) {
           starttimes: myVal[key].times[key2].starttimes,
           endtimes: myVal[key].times[key2].endtimes,
           risk: myVal[key].times[key2].risk,
+          dimensions: myVal[key].dimensions,
           hex: getHEX(myVal[key].times[key2].risk),
           vehiclekey: key,
           timekey: key2
@@ -315,7 +346,7 @@ const server = http.createServer(function (req, res) {
       memory = temp;
     }
     returnList[minimumID] = memory;
-    
+    console.log(returnList);
     res.send({data: returnList});
   })
   .post('/filterList', async function (req, res) {
@@ -482,88 +513,65 @@ const server = http.createServer(function (req, res) {
     let masks = req.headers.masks;
     let nomasks = req.headers.nomasks;
     let datetime = req.headers.time;
-    let busid = req.headers.busid;
-    let bustimeid = req.headers.bustimeid
+    let vehicleid = req.headers.vehicleid;
+    let timeid = req.headers.timeid
 
-    myVal = await database.ref(`vehicles/${type}/${busid}/times`).once("value");
-    myVal = myVal.val();
-    let busTimeId = "";
-    for (key in myVal) {
-      if (Date.parse(datetime) > Date.parse(myVal[key].starttimes) && Date.parse(datetime) < Date.parse(myVal[key].endtimes)) {
-        busTimeId = key
-      }
-    }
-
-    await database.ref(`vehicles/${type}/${busid}/times/${busTimeId}/masks`).set(masks);
-    await database.ref(`vehicles/${type}/${busid}/times/${busTimeId}/nomasks`).set(nomasks);
+    await database.ref(`vehicles/${type}/${vehicleid}/times/${timeid}/masks`).set(masks);
+    await database.ref(`vehicles/${type}/${vehicleid}/times/${timeid}/nomasks`).set(nomasks);
     res.send("success")
   })
-  .post("/busrideFinished", async function(req, res) {
+  .post("/coughIncrement", async function (req, res) {
+    res.setHeader('Access-Control-Allow-Origin', 'https://safetravels.macrotechsolutions.us');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+    let type = req.headers.type;
+    let datetime = req.headers.time;
+    let vehicleid = req.headers.vehicleid;
+    let timeid = req.headers.timeid
+
+    const val = await database.ref(`vehicles/${type}/${vehicleid}/times/${timeid}`).once("value")
+    console.log(val.val())
+    if (typeof val.val().coughs !== "string") {
+      await database.ref(`vehicles/${type}/${vehicleid}/times/${timeid}/coughs`).set(1)
+    } else {
+      await database.ref(`vehicles/${type}/${vehicleid}/times/${timeid}/coughs`).set(1+val.val().coughs)
+    }
+    res.send("success")
+  })
+  .post("/rideFinished", async function(req, res) {
     res.setHeader('Access-Control-Allow-Origin', 'https://safetravels.macrotechsolutions.us');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
 
-    const busid = req.headers.busid;
+    const vehicleid = req.headers.vehicleid;
     const type = req.headers.type;
     const datetime = req.headers.datetime;
-    const datetimeid = req.headers.datetimeid;
-
-    let masks = 0;
-    let riskscore = 0;
-    console.log(datetimeid)
-    myVal = await database.ref(`vehicles/${type}/${busid}/times/${datetimeid}`).once("value");
+    const datetimeid = req.headers.datetimeid; 
+    //duration, 
+    let number_masks = 0;
+    let people_risk_scores = []
+    var last_ride_risk = 0;
+    let historical_risk = []
+    let duration = 0;
+    myVal = await database.ref(`vehicles/${type}/${vehicleid}/times/${datetimeid}`).once("value");
     myVal = myVal.val(); 
+    number_masks = myVal.masks
+    last_ride_risk = myVal.risk
+    
+    for (key in myVal.seating) {
+      let user = myVal.seating[key].user;
+      let myVal2 = await database.ref(`users/${user}`).once('value'); 
+      myVal2 = myVal2.val();
+      // console.log(myVal2)
+      // riskscore.push(myVal2.risk)
+    }
 
-    console.log(myVal)
-    // for (key in myVal) {
-    //   if (Date.parse(datetime) > Date.parse(myVal[key].starttimes) && Date.parse(datetime) >= Date.parse(myVal[key].endtimes)) {
-    //     let busTimeId = key;
-    //     let myVal2 = await database.ref(`vehicles/${type}/${busid}/times/${busTimeId}`).once('value');
-    //     myVal2 = myVal2.val();
-    //     console.log(myVal2)
-    //     for (key2 in myVal2) {
-    //       // console.log(myVal2[key2].masks)
-    //       masks += myVal2[key2].masks;
-    //     }
-    //     busTimeId = datetimeid;
-
-    //     let myVal3 = await database.ref(`vehicles/${type}/${busid}/times/${busTimeId}/seating`).once('value');
-    //     myVal3 = myVal3.val();
-    //     for(key3 in myVal3) {
-    //       let user = myVal3[key3].user
-    //       let myVal4 = await database.ref(`users/${user}`).once('value')
-    //       myVal4 = myVal4.val();
-    //       for (key4 in myVal4) {
-    //         let score = myVal4[key4].risk 
-    //         riskscore += score;
-    //       }
-    //     }
-    //   }
-    // }
-
-    // console.log(masks);
-    // console.log(riskscore)
-
-    // let myVal2 = await database.ref(`vehicles/${type}/${busid}/times`).once('value');
-    // myVal2 = myVal2.val();
-    // let masks = 0; 
-    // for (key in myVal2) {
-    //   masks += myVal2[key].masks;
-    // }
-    // masks = masks.toString();
-
-    // let myVal3 = await database.ref(`vehicles/${type}/${busid}/times`).once('value');
-    // myVal3 = myVal3.val();
-    // var riskscore = []
-    // for (key in myVal3) {
-    //   let user = myVal3[key].user
-    //   let myVal4 = await database.ref(`users/${user}`).once('value');
-    //   myVal4 = myVal4.val();
-    //   for (key1 in myVal4) {
-    //     let score = myVal4[key1].risk 
-    //     riskscore.push(score);
-    //   }
-    // }
-    res.send('masks');
+    let myVal2 = await database.ref(`vehicles/${type}/${vehicleid}/times`).once('value', snapshot => {
+      snapshot.forEach(function (childSnapshot) {
+        let child = childSnapshot.val().seating 
+        console.log(child)
+      })
+    })
+    
+    res.send(people_risk_scores)
   })
   .listen(PORT, () => console.log(`Listening on ${PORT}`));
 
