@@ -11,9 +11,9 @@ ENDPOINT = "http://localhost:39113/coughIncrement"
 
 FILE = ""
 noise_floor = 3
-confidence_interval = 0.7
+confidence_interval = 0.5
 
-model = load_model("audio_model4")
+model = load_model("audio_model3")
 last_5 = []
 
 def send_post():
@@ -30,19 +30,22 @@ def callback(in_data, frame_count, time_info, flag):
     x = []
     audio_data = np.fromstring(in_data, dtype=np.float32)
     #print("Audio", len(audio_data))
-    S = transform_event(audio_data, 44100, int(44100*0.5))
+    S = transform_event(audio_data, 44100, int(44100*0.25))
     if librosa.feature.rms(S=S, frame_length=126).mean() < 2:
         return (None, pyaudio.paContinue)
     x.append(S.tolist())
     if len(x) == 0:
         return (None, pyaudio.paContinue)
-    #librosa.display.specshow(np.array(x[0]))
+    librosa.display.specshow(np.array(x[0]))
+    plt.draw()
+    plt.pause(0.0001)
+    plt.clf()
     x = np.array(x).reshape((len(x), 64, 16, 1))
-    conf = model.predict(np.array(x))[0][0]
+    conf = 1 - model.predict(np.array(x))[0][0]
     last_5.append(conf)
     if len(last_5) > 5:
         last_5 = last_5[1:]
-    #print(sum(last_5)/len(last_5))
+    print(sum(last_5)/len(last_5))
     if sum(last_5)/len(last_5) > confidence_interval and len(last_5) > 4:
         last_5 = []
         print("Cough")
@@ -64,7 +67,7 @@ if not FILE:
         output=False,
         frames_per_buffer=int(44100*0.5),
         stream_callback=callback,
-        input_device_index=1)
+        input_device_index=6)
 
     stream.start_stream()
 
